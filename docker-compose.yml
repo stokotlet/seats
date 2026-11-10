@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: seats
+      POSTGRES_PASSWORD: seats
+      POSTGRES_DB: seats
+    ports:
+      - "5432:5432"

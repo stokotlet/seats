@@ -1,0 +1,18 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/booking-api ./cmd/booking-api"
+  bin = "./tmp/booking-api"
+  entrypoint = ["./tmp/booking-api"]
+  include_ext = ["go"]
+  exclude_dir = ["tmp", "vendor", "testdata", "loadtest", "migrations"]
+  exclude_regex = ["_test\\.go$"]
+  delay = 500
+  # Stop the service with SIGINT so graceful shutdown runs on every reload,
+  # and force-kill only if it has not exited after kill_delay.
+  send_interrupt = true
+  kill_delay = "10s"
+
+[misc]
+  clean_on_exit = true

@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,6 +30,10 @@ func main() {
 func run(ctx context.Context, logger *slog.Logger) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
+	shutdown := make(chan error, 1)
+
+	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
 
 	dbUrl := os.Getenv("DATABASE_URL")
 	addr := os.Getenv("HTTP_ADDR")
@@ -74,11 +80,27 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	logger.Info("server started", "addr", addr)
 
+	go func() {
+		<-sigCtx.Done()
+		shutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		defer cancel()
+		logger.Info("shutdown started")
+		err := srv.Shutdown(shutCtx)
+		shutdown <- err
+	}()
+
 	err = srv.Serve(l)
 
 	if err != nil {
-		return fmt.Errorf("server init: %w", err)
+		if !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("serve http: %w", err)
+		}
 	}
 
+	err = <-shutdown
+
+	if err != nil {
+		return fmt.Errorf("shutdown: %w", err)
+	}
 	return nil
 }
